@@ -1,0 +1,104 @@
+---
+title: "tut04"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##Question 1
+
+##1. Assign each of the 25359 restaurants to have S3 class restaurant in R. You should now have a list of restaurant objects of length 25359.
+```{r}
+library(jsonlite)
+fname <- "../data/restaurants_dataset.json"
+rest_lines <- readLines(fname)
+rest_json <- lapply(rest_lines, fromJSON)
+class_func<-function(x){
+  class(x)<-"restaurant"
+  return (x)
+}
+rest_class_list<-lapply(rest_json,class_func)
+```
+
+## creating summary function
+
+#cat is used instead of print(character vector is returned)
+```{r}
+summary.restaurant<-function(x){
+  str<-paste(x$name,"was graded",length(x$grades$grade), "times")
+  cat(str)
+}
+```
+##Create a simple feature object rest_sf that contains a row for each restaurant
+```{r}
+names<-sapply(rest_json,function(x) x$name)
+cuisine<-sapply(rest_json,function(x)x$cuisine)
+boroughs<-sapply(rest_json,function(x)x$borough)
+coordinates<-sapply(rest_json,function(x)x$address$coord)
+filter_out <- function(x) {
+  if ((class(x) == "numeric")) {
+    return(x)
+  } else {
+    return(NA)
+  }
+}
+library(sf)
+coordinates <- sapply(coordinates, function(x) filter_out(x))
+lat <- sapply(coordinates, function(x) x[1])
+long <- sapply(coordinates, function(x) x[2])
+combine <- data.frame(cbind(names,boroughs,cuisine,lat,long))
+rest_sf <- st_as_sf(combine, coords = c("lat","long"), crs = 4326, na.fail = FALSE)
+plot(st_geometry(rest_sf),axes=TRUE)
+```
+##Problems with data
+
+Coordinates are  missing for some of the observations
+The cuisines are sometimes listed as "Not Listed/Not Applicable"
+There are 51 boroughs which are stated as "Missing" in our data
+#all_bor<-sapply(rest_class_list,function(x)x$borough)
+#borough_missing <- str_detect(all_bor, "Missing")
+#length(which(borough_missing))
+
+From our plot above there seems to be a few distinct outliers which possibly implies that the coordinates indicated are not in New York City. In this case, the coordinates may be wrongly indicated in the dataset.
+
+##MAS API
+```{r}
+library(jsonlite)
+url<-"https://eservices.mas.gov.sg/api/action/datastore/search.json?resource_id=7f1363cc-3875-4e03-a389-fc47342bb840&limit=342"
+mas_list<-fromJSON(url)
+mas_data<-mas_list$result$records
+start<-as.Date("1992-02-01")
+mas_data$end_of_month<-seq.Date(start,length=342,by="1 month")-1
+plot(mas_data$end_of_month,as.numeric(mas_data$cards_main)/1e6,main="Number of cards",type="l",xlab="Month",ylab="No.of cards(millions)",col="purple",las=2,xaxt='n')
+lines(mas_data$end_of_month,as.numeric(mas_data$cards_supp)/1e6,type="l",col="red")
+legend("topleft",legend=c("Main","Supp"),lty=1,col=c("purple","red"))
+x_seq<-seq(1,342,by=12)
+x_intervals<-mas_data$end_of_month[x_seq]
+axis(side=1,at=x_intervals,labels=strftime(x_intervals,format="%b-%y"))
+
+
+
+
+
+#Convert to dataframe
+as.data.frame()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```

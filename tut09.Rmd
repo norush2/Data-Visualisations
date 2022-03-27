@@ -1,0 +1,101 @@
+---
+title: "Tut_09"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+Loading relevant packages and data
+```{r}
+library(sf)
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(rvest)
+sg_poly<-st_read('../data/national-map-polygon-kml.kml', drivers="KML")%>%
+  st_transform(crs=3414)
+road_network<-read_sf("../data/national-map-line-kml.kml")
+hawkers<-readRDS("../data/hawker_ctr_raw.rds")
+area<-read_sf("../data/planning-boundary-area.kml")%>%
+  st_transform(crs=3414)
+st_transform(road_network,3414)
+
+```
+
+
+
+```{r}
+get_details <- function(x) {
+ obj <- read_html(x)
+ out_table <- html_table(obj)
+ out_table[[1]][1:2, 2]
+}
+features <- sapply(sg_poly$Description, get_details, 
+                   USE.NAMES = FALSE)
+sg_poly$names<-features[1,]
+sg_poly$description<-features[2,]
+sg_poly<-sg_poly%>%
+  filter(str_detect(names,"PEDRA BRANCA",negate=TRUE))%>%
+  filter(str_detect(description,"MALAYSIA",negate=TRUE))
+ coastal<-filter(sg_poly,str_detect(description,"Coastal_Outlines"))
+ hydro_parks<-filter(sg_poly,str_detect(description,"(Hydro)|(Park)"))
+ airport<-filter(sg_poly,str_detect(description,"Airport"))
+ central<-filter(sg_poly,str_detect(description,"Central"))
+ ggplot(coastal)+
+   geom_sf(fill=NA)+
+   geom_sf(data=hydro_parks,aes(fill=description))+
+   geom_sf(data=airport,col="red")+
+   geom_sf(data=central,col="red",fill=NA)+
+   coord_sf(datum=st_crs(3414))+
+   scale_fill_discrete(labels=c("Water Bodies","Nature reserves"),name="Legend",type=c("blue"," dark green"))+
+   labs(title="Hydrographic and Nature Reserves in Singapore")+
+   theme_classic()
+
+
+```
+
+
+Question 2
+
+The length of the expressways are wrongly indicated as we can see from the plot where
+the length of PAN ISLAND Expressway exceeds Singapore's Distance itself. This is 
+probably a case of double-counting.
+
+Question 3
+
+```{r hawker}
+get_details <- function(x) {
+ obj <- read_html(x)
+ out_table <- html_table(obj)
+ out_table[[1]][1:2, 2]
+}
+features <- sapply(area$Description, get_details, 
+                   USE.NAMES = FALSE)
+area$names<-features[1,]
+
+names<-vapply(hawkers[[1]][-1],function(x) x$NAME,"d")
+coordinates<-vapply(hawkers[[1]][-1],function(x) x$XY,"d")
+hawker_df<-tibble(names,coordinates)
+hawker_df<-hawker_df%>%separate(col=coordinates,into=c("X","Y"),sep=",")
+#converting our data frame into sf object
+hawk_sf<-st_as_sf(hawker_df,coords =c("X","Y"))
+st_crs(hawk_sf)<-3414
+st_crs(area)<-3414
+hawk_in_area<-st_contains(area,hawk_sf)
+#Need to highlight those with more than 10 hawker centres
+vect<-vapply(hawk_in_area,length,FUN.VALUE=1L)
+index<-which(vect>=10)
+ggplot(coastal)+
+  geom_sf(fill=NA)+
+  geom_sf(data=area,lty=2,fill=NA,colour= "pink")+
+  geom_sf(data=hawk_sf,colour="blue",alpha=0.6)+
+  geom_sf(data=area[index,],aes(col=names),fill=NA)+
+  coord_sf(datum=st_crs(3414))+
+    labs(title="Planning areas with high concentration of hawker centres",col="Highlighted areas")+
+  theme(legend.position ="bottom")
+```

@@ -1,0 +1,86 @@
+---
+title: "tut10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+Heights seem to be important in certain sports, i.e. Basketball players are taller and Gymnasts are shorter. Did all countries realized the importance of heights in these sports at the beginning of Olympics,or was it only after a certain period?
+
+First,we create a line plot comparing the mean heights of all the athletes across the years.Maybe we should split them by their gender too as that might affect the mean height of the athletes.( Gender and Height may have an association)
+```{r cars}
+library(tidyverse)
+olympics<-read.csv("../data/athlete_events.csv")
+tmp<-olympics%>%
+  filter(!is.na(Height))%>%
+  filter(Sport %in% c("Basketball","Gymnastics"))
+tmp%>%group_by(Year)%>%
+  distinct_at(vars(ID),.keep_all=TRUE)%>%
+  ungroup()%>%
+  group_by(Year,Sport)%>%
+  summarize(meanheight = mean(Height))%>%
+ggplot(aes(x=Year,y=meanheight,group=Sport,color=Sport))+
+  geom_point()+
+  geom_line()+
+  labs(title="Comparison of Mean Height of athletes throughout the Years",subtitle = "Comparison for Basketball and Gymnastics")
+#data<-tmp%>%group_by(Year)%>%
+  #distinct(tmp$ID)
+```
+There might be an association between sex and height so we plot the following below:
+```{r}
+tmp%>%group_by(Year)%>%
+  distinct_at(vars(ID),.keep_all=TRUE)%>%
+  ungroup()%>%
+  group_by(Sex,Year,Sport)%>%
+  summarize(meanheight=mean(Height))%>%
+  ggplot(aes(x=Year,y=meanheight,group=interaction(Sport,Sex),color=Sport,shape = Sex))+
+  geom_point()+
+  geom_line()
+```
+
+From the plots above,gymnastics and Basketball for females started at a later time as compared to Male Teams for Basketball and Gymnastics.
+By observing the trends above, the heights of Basketball players is increasing over the years for both males and females.
+However, for gymnastics we see an increase in heights between 1900 and 1908 and then on starts to decline once again.(For Males)
+For Female gymnastic atheletes, we see a general decreasing trend in height. However, there is a very sharpest dip is seen in 1980. We can go on to inspect this to see if this sharpest dip is because of only few gymnast athletes participating in that year. But that does not seem to be the case from our code below.
+```{r}
+olympics%>%
+  filter(!is.na(Height))%>%
+  filter(Year %in% c(1980))%>%
+  filter(Sport=="Gymnastics")%>%
+  group_by(Year)%>%
+  distinct_at(vars(ID),.keep_all=TRUE)
+```
+
+There are some interesting sports events over the years of the Olympics, such as Art Competitions,Luge, Bobsleigh and Aeronautics. However, some of these are no longer Olympic sports. In general,how has the popularity of the sports events changed over the years?
+```{r}
+olympics%>%
+  filter(Sport %in% c("Art Competitions","Luge","Bobsleigh","Aeronautics"))%>%
+  group_by(Year,Sport)%>%
+           ggplot()+
+           geom_count(aes(x=Year,y=Sport))
+
+
+
+olympics%>%
+  filter(Sport %in% c("Art Competitions","Luge","Bobsleigh","Aeronautics"))%>%
+  group_by(Year,Sport)%>%
+  mutate(count=n())%>%
+   mutate(Sport=recode(Sport,"Art Competitions"="Art"))%>%
+           ggplot()+
+           geom_line(aes(x=Year,y=count,group=Sport,color=Sport))+
+  geom_point(aes(x=Year,y=count))
+```
+
+Since size may be visually hard to compare the counts , I modify my graph into a line plot.
+The popularity of Arts Competition rose from 1924 to 1932 and then started dropping once again and only took place two more times before it was taken out from olympics. Aeronautics only occured for one year.
+The Bobsleigh seemed to be having a very slight increase in popularity over the years while the Luge seemed to be quite stagnant over the years with small decreseas and increases in the numbers
+
+
+
+
+
+
+

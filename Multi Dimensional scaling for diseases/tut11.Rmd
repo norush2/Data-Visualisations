@@ -1,0 +1,64 @@
+---
+title: "tutorial_11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+```{r cars}
+
+library(MASS)
+library(tidyverse)
+sym_list <- readRDS("../data/symptom_list.rds")
+sym_list$Allergy
+
+jac_fn<-function(x,y){
+  int<-length(intersect(x,y))
+  uni<-length(union(x,y))
+  return (1-int/uni)
+}
+
+jac_fn(sym_list$Allergy, sym_list$`Common Cold`)
+
+#Create a 41x41 matrix (fill them in with zeros first)
+full_mat<-matrix(0,nrow=length(sym_list),ncol=length(sym_list))
+rownames(full_mat)<-names(sym_list)
+colnames(full_mat)<-names(sym_list)
+for (i in 1:length(sym_list)){
+  if(i<length(sym_list)){
+    for(j in (i+1):length(sym_list)){
+    full_mat[j,i]<-jac_fn(sym_list[[i]],sym_list[[j]])
+    
+    }
+  }
+}
+full_mat
+#Convert to dist object
+d1<-as.dist(full_mat)
+#Use this as an input to the hierarchical clustering algorithm, using ward.D2 distance
+h1<-hclust(d1,method = "ward.D2")
+plot(as.dendrogram(h1))
+#Create k=4 groups
+grps <- cutree(h1, k=4)
+#Apply MDS to the distance object
+#dist<-as.dist((1-d1)/2)
+mds<-MASS::sammon(d1)
+
+
+#Create a scatter plot, with colours mapped to the groups
+mds_df <- data.frame(mds$points) %>% 
+  mutate(disease = row.names(mds$points), Cluster=grps)
+
+ggplot(mds_df) + 
+  geom_text(aes(x=X1, y=X2, label=disease, col=as.factor(Cluster)), 
+            show.legend = FALSE) +
+  labs(title="MDS Output for Diseases", 
+  subtitle = "Colours denote hierarchical clustering output with K=4") 
+
+```
+
+
